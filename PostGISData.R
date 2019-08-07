@@ -2,13 +2,13 @@
 ## Connecting 
 ## 
 ## DATE CREATED: 07/22/2017
-## DATE MODIFIED: 08/08/2017
+## DATE MODIFIED: 08/09/2017
 ## AUTHORS: Benoit Parmentier, Rachael Garrett, Sam Levy, Rodrigo Rivero
 ## PROJECT: supplychaincommitments working group
 ## ISSUE: 
 ## TO DO:
 ##
-## COMMIT: setting up code and example of postgis connection and query
+## COMMIT: setting up connection to postgis db with password
 ##
 ## Useful links:
 #https://rpubs.com/dgolicher/6373
@@ -70,6 +70,7 @@ load_obj <- function(f){
 #function_processing <- ".R" #PARAM 1
 
 #script_path <- "/nfs/bparmentier-data/Data/projects/supplychaincommitments/scripts"
+#script_path <- "/nfs/supplychaincommitments-data/scripts"
 
 #source(file.path(script_path,function_processing)) #source all functions used in this script 1.
 
@@ -77,14 +78,21 @@ load_obj <- function(f){
 ####################  Parameters and argument set up ###########
 
 in_dir <- "/nfs/supplychaincommitments-data/GIS.Data/"
-out_dir <- "/nfs/bparmentier-data/Data/projects/supplychaincommitments/outputs"
+#out_dir <- "/nfs/bparmentier-data/Data/projects/supplychaincommitments/outputs"
+out_dir <- "/nfs/supplychaincommitments-data/outputs"
 
 num_cores <- 2 #param 8 #normally I use only 1 core for this dataset but since I want to use the mclappy function the number of cores is changed to 2. If it was 1 then mclappy will be reverted back to the lapply function
 create_out_dir_param=TRUE # param 9
 
-out_suffix <-"postgis_data_08082017" #output suffix for the files and ouptut folder #param 12
+out_suffix <-"postgis_data_08092017" #output suffix for the files and ouptut folder #param 12
 
 infile_data <- "/nfs/supplychaincommitments-data/GIS.Data/Admin/BRA_adm1.shp" 
+
+### db related:
+db_ini_filename <- "/nfs/supplychaincommitments-data/data/postgis_init/supplychaincommitments.ini" #password info
+db_name <- "supplychaincommitments"
+db_user <- "supplychaincommitments"
+db_hostname <- "sesync-postgis01.research.sesync.org"
 
 ##############################  START SCRIPT  ############################
 
@@ -118,15 +126,14 @@ options(scipen=999)  #remove scientific writing
 ## 4) FROM R:
 
 #Load data into PostgreSQL from ESRI shape file 
-##Connect from 
-con <- dbConnect(PostgreSQL(), 
-                 dbname = 'supplychaincommitments',
-                 user='supplychaincommitments',
-                 password='34gj36fd', 
-                 host = 'sesync-postgis01.research.sesync.org')
+##Read in password: 
+db_password <- scan(db_ini_filename, character(), n = 1)
 
-#set this up...
-#password = scan("bedbug.ini", character(), n = 1))
+con <- dbConnect(PostgreSQL(), 
+                 dbname = db_name,
+                 user = db_user,
+                 password = db_password, 
+                 host = db_hostname)
 
 ## Read in as sp object:
 BRstate_sp <- readOGR(dsn=dirname(infile_data),layer=sub(".shp","",basename(infile_data)))
@@ -135,19 +142,31 @@ BRstate_sp <- readOGR(dsn=dirname(infile_data),layer=sub(".shp","",basename(infi
 BRstate_sf <- st_read(dsn=dirname(infile_data),layer=sub(".shp","",basename(infile_data)))
 
 #### Write a shapefile layer to the postgis database using the sp/rgdal package
-writeOGR(BRstate_sp, "PG:dbname=supplychaincommitments host=sesync-postgis01.research.sesync.org user=supplychaincommitments password=34gj36fd",  
-         layer="BRA_test2",layer_options = "OVERWRITE=true", driver= "PostgreSQL")
+PG_info <- paste0("PG:dbname=",db_name," ",
+                  "host=",db_hostname," ",
+                  "user=",db_user," ",
+                  "password=",db_password)
+
+writeOGR(BRstate_sp, 
+         PG_info,
+         layer="BRA_test4",
+         layer_options = "OVERWRITE=true", 
+         driver= "PostgreSQL")
 
 #### Write a shapefile layer to the postgis database using the sp/rgdal package
-st_write(BRstate_sf, "PG:dbname=supplychaincommitments host=sesync-postgis01.research.sesync.org user=supplychaincommitments password=34gj36fd", 
-         layer="BRA_test3",layer_options = "OVERWRITE=true")
+st_write(BRstate_sf, 
+         PG_info,
+         layer="BRA_test3",
+         layer_options = "OVERWRITE=true")
 
 plot(BRstate_sf$geometry)
-
 
 ##Access and query the database:
 
 sql_command <- "SELECT id_1 FROM bra_test"
+results <- dbGetQuery(con, sql_command) #this is a data.frame
+
+sql_command <- "SELECT ID_1,ISO,NAME_1 FROM bra_adm1 LIMIT 5;"
 results <- dbGetQuery(con, sql_command) #this is a data.frame
 
 #################### End of script ##################################
