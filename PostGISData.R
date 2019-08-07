@@ -4,11 +4,11 @@
 ## DATE CREATED: 07/22/2017
 ## DATE MODIFIED: 08/08/2017
 ## AUTHORS: Benoit Parmentier, Rachael Garrett, Sam Levy, Rodrigo Rivero
-## PROJECT: supplychaincommitments
+## PROJECT: supplychaincommitments working group
 ## ISSUE: 
 ## TO DO:
 ##
-## COMMIT: testing connectivity to postgis database and loading of shapefiles
+## COMMIT: setting up code and example of postgis connection and query
 ##
 ## Useful links:
 #https://rpubs.com/dgolicher/6373
@@ -65,7 +65,7 @@ load_obj <- function(f){
   env[[nm]]
 }
 
-### Other functions ####
+### Other functions for later ####
 
 #function_processing <- ".R" #PARAM 1
 
@@ -76,20 +76,15 @@ load_obj <- function(f){
 ############################################################################
 ####################  Parameters and argument set up ###########
 
-in_dir <- "/nfs/bparmentier-data/Data/projects/modeling_weed_risk/data"
-out_dir <- "/nfs/bparmentier-data/Data/projects/modeling_weed_risk/outputs"
-
-#Chinchu data
-#in_dir <- "/Users/chinchuharris/modeling_weed_risk/data" #local bpy50 , param 1
-#out_dir <- "/Users/chinchuharris/modeling_weed_risk/outputs" #param 2
+in_dir <- "/nfs/supplychaincommitments-data/GIS.Data/"
+out_dir <- "/nfs/bparmentier-data/Data/projects/supplychaincommitments/outputs"
 
 num_cores <- 2 #param 8 #normally I use only 1 core for this dataset but since I want to use the mclappy function the number of cores is changed to 2. If it was 1 then mclappy will be reverted back to the lapply function
 create_out_dir_param=TRUE # param 9
 
-out_suffix <-"roc_experiment_08032017" #output suffix for the files and ouptut folder #param 12
+out_suffix <-"postgis_data_08082017" #output suffix for the files and ouptut folder #param 12
 
-infile_data <- "publicavailableaphisdatsetforbenoit.csv"
-#infile_genes_identity <- "genes_identity.csv"
+infile_data <- "/nfs/supplychaincommitments-data/GIS.Data/Admin/BRA_adm1.shp" 
 
 ##############################  START SCRIPT  ############################
 
@@ -112,56 +107,48 @@ if(create_out_dir_param==TRUE){
 options(scipen=999)  #remove scientific writing
 
 
-### PART I READ AND PREPARE DATA #######
-#set up the working directory
-#Create output directory
+### PART I: READ IN SPATIAL DATA AND QUERY #######
 
-data <- read.csv(file.path(in_dir,infile_data))
-dim(data)
-View(data)
-#> dim(data)
-#[1] 94 42
+##Here we are reading in the shapefile data into the database 
+## From the command line:
+## 1) ssh to sesync
+## 2) connect to database: bparmentier@sshgw02:~$ psql -h sesync-postgis01.research.sesync.org -U supplychaincommitments
+## 3) load shapefile in postgis: shp2pgsql -s 4326 -c -I /nfs/supplychaincommitments-data/GIS.Data/Admin/BRA_adm1.shp AdminUnits2
 
-############## In R ###############
+## 4) FROM R:
 
 #Load data into PostgreSQL from ESRI shape file 
-##Connect
+##Connect from 
 con <- dbConnect(PostgreSQL(), 
                  dbname = 'supplychaincommitments',
                  user='supplychaincommitments',
                  password='34gj36fd', 
                  host = 'sesync-postgis01.research.sesync.org')
 
-##Here we are reading in the shapefile data into the database 
-#sqlcommand=c("shp2pgsql -s 4326 -c -I /nfs/supplychaincommitments-data/GIS.Data/Admin/BRA_adm1.shp AdminUnits | psql -U supplychaincommitments -d supplychaincommitments")
-
-in_filename <- "/nfs/supplychaincommitments-data/GIS.Data/Admin/BRA_adm1.shp" 
+#set this up...
+#password = scan("bedbug.ini", character(), n = 1))
 
 ## Read in as sp object:
-BRstate_sp <- readOGR(dsn=dirname(in_filename),layer=sub(".shp","",basename(in_filename)))
+BRstate_sp <- readOGR(dsn=dirname(infile_data),layer=sub(".shp","",basename(infile_data)))
 
 ## Read in as sf object: this is the way to go
-BRstate_sf <- st_read(dsn=dirname(in_filename),layer=sub(".shp","",basename(in_filename)))
-
-### You can run this command from you laptop (if you have postgis) or from the sesync ssh
-sqlcommand=c("shp2pgsql -s 4326 /nfs/supplychaincommitments-data/GIS.Data/Admin/BRA_adm1.shp AdminUnits | psql -U supplychaincommitments -d supplychaincommitments -h sesync-postgis01.research.sesync.org")
-system(sqlcommand)
-
+BRstate_sf <- st_read(dsn=dirname(infile_data),layer=sub(".shp","",basename(infile_data)))
 
 #### Write a shapefile layer to the postgis database using the sp/rgdal package
 writeOGR(BRstate_sp, "PG:dbname=supplychaincommitments host=sesync-postgis01.research.sesync.org user=supplychaincommitments password=34gj36fd",  
-         layer="BRA_test",layer_options = "OVERWRITE=true", driver= "PostgreSQL")
+         layer="BRA_test2",layer_options = "OVERWRITE=true", driver= "PostgreSQL")
 
 #### Write a shapefile layer to the postgis database using the sp/rgdal package
 st_write(BRstate_sf, "PG:dbname=supplychaincommitments host=sesync-postgis01.research.sesync.org user=supplychaincommitments password=34gj36fd", 
-         layer_options = "OVERWRITE=true")
+         layer="BRA_test3",layer_options = "OVERWRITE=true")
 
-plot(BRstate_sf)
+plot(BRstate_sf$geometry)
 
 
-##Access the database
+##Access and query the database:
+
 sql_command <- "SELECT id_1 FROM bra_test"
-results <- dbSendQuery(con,sql_command)
+results <- dbGetQuery(con, sql_command) #this is a data.frame
 
 #################### End of script ##################################
 
