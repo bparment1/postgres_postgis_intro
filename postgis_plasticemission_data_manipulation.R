@@ -77,7 +77,7 @@ load_obj <- function(f){
 ############################################################################
 ####################  Parameters and argument set up ###########
 
-#in_dir <- "/nfs/supplychaincommitments-data/GIS.Data/"
+in_dir <- "/nfs/bparmentier-data/"
 out_dir <- "/nfs/PlasticEmission-data/tmp"
 
 num_cores <- 2 #param 8 #normally I use only 1 core for this dataset but since I want to use the mclappy function the number of cores is changed to 2. If it was 1 then mclappy will be reverted back to the lapply function
@@ -86,10 +86,12 @@ create_out_dir_param=TRUE # param 9
 out_suffix <-"postgis_data_08162019" #output suffix for the files and ouptut folder #param 12
 
 ### db related:
-db_ini_filename <- "/nfs/bparmentier-data/.pg_service.conf" #password info
-#db_name <- "plasticemission"
-#db_user <- "plasticemission"
-#db_hostname <- "sesync-postgis02.research.sesync.org"
+#db_ini_filename <- "/nfs/bparmentier-data/.pg_service.conf" #password info
+db_ini_filename <- "/nfs/bparmentier-data/Data/projects/PlatsicEmission-data/postgis_init/plasticemission.ini" #password info
+
+db_name <- "plasticemission"
+db_user <- "plasticemission"
+db_hostname <- "postgis02.research.sesync.org"
 
 ##############################  START SCRIPT  ############################
 
@@ -111,46 +113,75 @@ if(create_out_dir_param==TRUE){
 
 options(scipen=999)  #remove scientific writing
 
-
 ### PART I: READ IN SPATIAL DATA AND QUERY #######
 
 ##Here we are reading in the shapefile data into the database 
 ## From the command line:
 ## 1) ssh to sesync
-## 2) connect to database: bparmentier@sshgw02:~$ psql -h sesync-postgis02.research.sesync.org -U plasticemission
-## 3) load shapefile in postgis: shp2pgsql -s 4326 -c -I /nfs/supplychaincommitments-data/GIS.Data/Admin/BRA_adm1.shp AdminUnits2
+## 2) connect to database: bparmentier@sshgw02:~$ psql -h postgis02.research.sesync.org -d plasticemission -U plasticemission
 
 ## 4) FROM R:
 
 #Load data into PostgreSQL from ESRI shape file 
 ##Read in password: 
-#db_password <- scan(db_ini_filename, character(), n = 1)
+db_password <- scan(db_ini_filename, character(), n = 1)
 
 library(DBI)
 library(RPostgres)
 
-conn <- dbConnect(Postgres(), 
-                  service = 'plasticemission')
-
+## Use /.pg_service.conf for better practice
+#conn <- dbConnect(Postgres(), 
+#                  service = 'plasticemission')
+ 
 con <- dbConnect(PostgreSQL(), 
                  dbname = db_name,
                  user = db_user,
                  password = db_password, 
                  host = db_hostname)
 
-## Read in as sp object:
-BRstate_sp <- readOGR(dsn=dirname(infile_data),layer=sub(".shp","",basename(infile_data)))
+#Load data into PostgreSQL from ESRI shape file 
+##Read in password: 
+db_password <- scan(db_ini_filename, character(), n = 1)
 
-## Read in as sf object: this is the way to go
-BRstate_sf <- st_read(dsn=dirname(infile_data),layer=sub(".shp","",basename(infile_data)))
+conn <- dbConnect(PostgreSQL(), 
+                 dbname = db_name,
+                 user = db_user,
+                 password = db_password, 
+                 host = db_hostname)
 
-#### Write a shapefile layer to the postgis database using the sp/rgdal package
+# List tables in the database 
+dbListTables(conn)
+#\dt in psql
+dbListFields(conn, 'reference')
 
-sql_command <- "SELECT id_1 FROM bra_test"
-results <- dbGetQuery(con, sql_command) #this is a data.frame
+#SELECT * FROM region
+sql_command <- "SELECT * FROM region"
+region <- dbGetQuery(conn, sql_command) #this is a data.frame
+sql_command <- "SELECT * FROM region where id LIKE 'S%'"
+region_subset <- dbGetQuery(conn, sql_command) #this is a data.frame
 
-sql_command <- "SELECT ID_1,ISO,NAME_1 FROM bra_adm1 LIMIT 5;"
-results <- dbGetQuery(con, sql_command) #this is a data.frame
+#end with S
+sql_command <- "SELECT * FROM region where id LIKE '%S'"
+region_subset <- dbGetQuery(conn, sql_command) #this is a data.frame
+region_subset
+
+## Select the subset of data your interested in by location
+
+sql_command <- "SELECT COUNT(*) FROM value"
+no_row <- dbGetQuery(conn, sql_command) #this is a data.frame
+sql_command <- "SELECT COUNT(DISTINCT(location_id)) FROM value"
+no_location <- dbGetQuery(conn, sql_command)
+no_location
+
+sql_command <- "SELECT * FROM value"
+value <- dbGetQuery(conn, sql_command) #this is a data.frame
+
+value <- dbGetQuery(conn, sql_command) #this is a data.frame
+value
+dim(value)
+
+sql_command <- "SELECT * FROM value JOIN location ON location_id = location.id WHERE name = 'Sri Lanka';"
+
 
 #################### End of script ##################################
 
