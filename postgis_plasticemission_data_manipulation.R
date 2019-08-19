@@ -133,7 +133,7 @@ library(RPostgres)
 #conn <- dbConnect(Postgres(), 
 #                  service = 'plasticemission')
  
-con <- dbConnect(PostgreSQL(), 
+conn <- dbConnect(PostgreSQL(), 
                  dbname = db_name,
                  user = db_user,
                  password = db_password, 
@@ -202,6 +202,29 @@ test <- dbGetQuery(conn, sql_command) #this is a data.frame
 #  Could not create execute: COPY temperature TO '//nfs/PlasticEmission-data/tmp/value_join2.csv' DELIMITER ',' CSV HEADER;
 
 #COPY temperature TO '/home/bparmentier/Data/Benoit/Databases/postgres/outputs/temperature.csv' DELIMITER ',' CSV HEADER;
+
+sql_command <- "SELECT * FROM value JOIN location ON location_id = location.id WHERE name = 'Estonia' and variable_id = 25"
+value_estonia <- dbGetQuery(conn, sql_command) #this is a data.frame
+class(value_estonia)
+
+## imputation
+
+### modeling 
+
+## output dir
+write.table(value_estonia,file.path(out_dir,"value_estonia.txt"),sep=",")
+
+#SELECT name FROM (SELECT name FROM agentinformation) as a  
+
+sql_command <- "SELECT id, year,value FROM (SELECT * FROM value JOIN location ON location_id = location.id WHERE name = 'Estonia' and variable_id = 25) AS estonia"
+sql_command <- "SELECT id, year,value FROM (SELECT * FROM value JOIN location ON location_id = location.id WHERE name = 'Estonia' and variable_id = 25) AS estonia"
+
+value_estonia2 <- dbGetQuery(conn, sql_command) #this is a data.frame
+class(value_estonia2)
+
+write.table(value_estonia,file.path(out_dir,"value_estonia.txt"),sep=",")
+
+dbDisconnect(conn)
 
 #################### End of script ##################################
 
