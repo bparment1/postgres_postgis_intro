@@ -1,11 +1,11 @@
 ############### SESYNC Research Support: plasticemission ########## 
-## Connecting to database an dexporting
+## This script sets up the modeling pipeline for the plasticemission database
 ## 
 ## DATE CREATED: 08/16/2019
-## DATE MODIFIED: 08/16/2019
-## AUTHORS: Benoit Parmentier
+## DATE MODIFIED: 08/19/2019
+## AUTHORS: Benoit Parmentier, Stephanie Borelle
 ## PROJECT: plasticemission working group
-## ISSUE: exporting csv from database
+## ISSUE: accessing database and data imputation set up 
 ## TO DO:
 ##
 ## COMMIT: setting up connection to postgis db with password
@@ -13,6 +13,7 @@
 ## Useful links:
 #https://rpubs.com/dgolicher/6373
 #http://www.bostongis.com/pgsql2shp_shp2pgsql_quickguide.bqg
+## TO DO: USE PG CONFIG!!! instead of ini file 
 
 ###################################################
 #
@@ -41,6 +42,8 @@ library(dplyr)
 library(lattice)
 library(gplots)
 library(RPostgreSQL)
+library(DBI)
+library(RPostgres)
 
 #
 ###### Functions used in this script and sourced from other files
@@ -126,19 +129,11 @@ options(scipen=999)  #remove scientific writing
 ##Read in password: 
 db_password <- scan(db_ini_filename, character(), n = 1)
 
-library(DBI)
-library(RPostgres)
 
 ## Use /.pg_service.conf for better practice
 #conn <- dbConnect(Postgres(), 
 #                  service = 'plasticemission')
  
-conn <- dbConnect(PostgreSQL(), 
-                 dbname = db_name,
-                 user = db_user,
-                 password = db_password, 
-                 host = db_hostname)
-
 #Load data into PostgreSQL from ESRI shape file 
 ##Read in password: 
 db_password <- scan(db_ini_filename, character(), n = 1)
