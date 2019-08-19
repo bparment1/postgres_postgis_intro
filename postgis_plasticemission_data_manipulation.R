@@ -167,6 +167,10 @@ region_subset
 
 ## Select the subset of data your interested in by location
 
+sql_command <- "SELECT * FROM location"
+location <- dbGetQuery(conn, sql_command)
+location
+
 sql_command <- "SELECT COUNT(*) FROM value"
 no_row <- dbGetQuery(conn, sql_command) #this is a data.frame
 sql_command <- "SELECT COUNT(DISTINCT(location_id)) FROM value"
@@ -175,13 +179,29 @@ no_location
 
 sql_command <- "SELECT * FROM value"
 value <- dbGetQuery(conn, sql_command) #this is a data.frame
-
-value <- dbGetQuery(conn, sql_command) #this is a data.frame
 value
 dim(value)
 
 sql_command <- "SELECT * FROM value JOIN location ON location_id = location.id WHERE name = 'Sri Lanka';"
+value_join <- dbGetQuery(conn, sql_command) #this is a data.frame
+value_join
+dim(value_join)
 
+write.table(value_join,file.path(out_dir,"value_join.txt"),sep=",")
+
+sql_command <- "COPY temperature TO '/nfs/PlasticEmission-data/tmp/value_join2.csv' DELIMITER ',' CSV HEADER;"
+test <- dbGetQuery(conn, sql_command) #this is a data.frame
+
+#> test <- dbGetQuery(conn, sql_command) #this is a data.frame
+#Error in postgresqlExecStatement(conn, statement, ...) : 
+#  RS-DBI driver: (could not Retrieve the result : ERROR:  must be superuser to COPY to or from a file
+#                  HINT:  Anyone can COPY to stdout or from stdin. psql's \copy command also works for anyone.
+#)
+#Warning message:
+#In postgresqlQuickSQL(conn, statement, ...) :
+#  Could not create execute: COPY temperature TO '//nfs/PlasticEmission-data/tmp/value_join2.csv' DELIMITER ',' CSV HEADER;
+
+#COPY temperature TO '/home/bparmentier/Data/Benoit/Databases/postgres/outputs/temperature.csv' DELIMITER ',' CSV HEADER;
 
 #################### End of script ##################################
 
