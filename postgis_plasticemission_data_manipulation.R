@@ -81,7 +81,7 @@ out_suffix <-"postgis_data_08202019" #output suffix for the files and ouptut fol
 
 ### db related:
 #db_ini_filename <- "/nfs/bparmentier-data/.pg_service.conf" #password info
-db_ini_filename <- "/nfs/bparmentier-data/Data/projects/PlatsicEmission-data/postgis_init/plasticemission.ini" #password info
+db_ini_filename <- "/nfs/PlasticEmission-data/plasticemission.ini" #password info
 
 db_name <- "plasticemission"
 db_user <- "plasticemission"
@@ -177,7 +177,7 @@ dim(value_df)
 ##### Example for variable 
 i <- 1
 country_name <- list_countries[i]
-varipasable_id <- 25
+variable_id <- 25
 
 sql_command <- paste("SELECT * FROM value JOIN location ON location_id=location.id ", 
                      "WHERE name=",shQuote(country_name)," ",
@@ -189,6 +189,25 @@ data_df <- dbGetQuery(conn, sql_command)  #Selecting station using a SQL query
 out_filename <- paste0("data_extracted_",country_name,".csv")
 write.table(data_df,file.path(out_dir,out_filename),sep=",")
 
+##### Generate all the files for countries
+
+#can make this a function 
+for (i in 1:length(list_countries)){
+  #i <- 1
+  country_name <- list_countries[i]
+  varipasable_id <- 25
+  
+  sql_command <- paste("SELECT * FROM value JOIN location ON location_id=location.id ", 
+                       "WHERE name=",shQuote(country_name)," ",
+                       "AND variable_id = ",variable_id, ";",sep="")
+  
+  data_df <- dbGetQuery(conn, sql_command)  #Selecting station using a SQL query
+  ## output dir
+  out_filename <- paste0("data_extracted_",country_name,".csv")
+  write.table(data_df,file.path(out_dir,out_filename),sep=",")
+  
+}
+### See errror messages at the end of the script.
 
 dbDisconnect(conn)
 
@@ -201,4 +220,30 @@ dbDisconnect(conn)
 
 #################### End of script ##################################
 
+
+### Error messages:
+#Error in postgresqlExecStatement(conn, statement, ...) : 
+#  RS-DBI driver: (could not Retrieve the result : ERROR:  column "Korea, Democratic People's Republic of" does not exist
+#                  LINE 1: ...IN location ON location_id=location.id WHERE name="Korea, De...
+#                                                             ^
+#)
+#Error in postgresqlExecStatement(conn, statement, ...) : 
+#  RS-DBI driver: (could not Retrieve the result : ERROR:  column "Lao People's Democratic Republic" does not exist
+#LINE 1: ...IN location ON location_id=location.id WHERE name="Lao Peopl...
+                                                             ^
+#)
+#In addition: Warning message:
+#In postgresqlQuickSQL(conn, statement, ...) :
+#  Could not create execute: SELECT * FROM value JOIN location ON location_id=location.id WHERE name="Korea, Democratic People's Republic of" AND variable_id = 25;
+#Error in postgresqlExecStatement(conn, statement, ...) : 
+#  RS-DBI driver: (could not Retrieve the result : ERROR:  column "Côte d'Ivoire" does not exist
+#LINE 1: ...IN location ON location_id=location.id WHERE name="Côte d'Iv...
+#^
+#  )
+#In addition: Warning message:
+#  In postgresqlQuickSQL(conn, statement, ...) :
+#  Could not create execute: SELECT * FROM value JOIN location ON location_id=location.id WHERE name="Lao People's Democratic Republic" AND variable_id = 25;
+#Warning message:
+#  In postgresqlQuickSQL(conn, statement, ...) :
+#  Could not create execute: SELECT * FROM value JOIN location ON location_id=location.id WHERE name="Côte d'Ivoire" AND variable_id = 25;
 
