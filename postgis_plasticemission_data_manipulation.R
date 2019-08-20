@@ -74,11 +74,14 @@ load_obj <- function(f){
 in_dir <- "/nfs/bparmentier-data/"
 out_dir <- "/nfs/PlasticEmission-data/tmp"
 
-num_cores <- 2 #param 8 #normally I use only 1 core for this dataset but since I want to use the mclappy function the number of cores is changed to 2. If it was 1 then mclappy will be reverted back to the lapply function
+num_cores <- 2 #param 8 #To use with mclappy 
 create_out_dir_param=TRUE # param 9
 
 out_suffix <-"postgis_data_08202019" #output suffix for the files and ouptut folder #param 12
 
+variable_id <- NULL #if null is not used in the query
+
+#### CONSTANT
 ### db related:
 #db_ini_filename <- "/nfs/bparmentier-data/.pg_service.conf" #password info
 db_ini_filename <- "/nfs/PlasticEmission-data/plasticemission.ini" #password info
@@ -107,7 +110,7 @@ if(create_out_dir_param==TRUE){
 
 options(scipen=999)  #remove scientific writing
 
-### PART I: READ IN SPATIAL DATA AND QUERY #######
+### PART I: GENERATE QUERY #######
 
 ##Here we are reading in the shapefile data into the database 
 ## From the command line:
@@ -124,6 +127,8 @@ conn <- dbConnect(PostgreSQL(),
                  user = db_user,
                  password = db_password, 
                  host = db_hostname)
+
+#conn <- dbConnect(PostgreSQL(), service = 'plasticemission')
 
 # List tables in the database 
 dbListTables(conn)
@@ -177,11 +182,16 @@ dim(value_df)
 ##### Example for variable 
 i <- 1
 country_name <- list_countries[i]
-variable_id <- 25
 
-sql_command <- paste("SELECT * FROM value JOIN location ON location_id=location.id ", 
-                     "WHERE name=",shQuote(country_name)," ",
-                     "AND variable_id = ",variable_id, ";",sep="")
+if(!is.null(variable_id)){
+  sql_command <- paste("SELECT * FROM value JOIN location ON location_id=location.id ", 
+                       "WHERE name=",shQuote(country_name)," ",
+                       "AND variable_id = ",variable_id, ";",sep="")
+}else{
+  sql_command <- paste("SELECT * FROM value JOIN location ON location_id=location.id ", 
+                       "WHERE name=",shQuote(country_name),";",sep="")
+  
+}
 
 data_df <- dbGetQuery(conn, sql_command)  #Selecting station using a SQL query
 ## output dir
@@ -191,20 +201,32 @@ write.table(data_df,file.path(out_dir,out_filename),sep=",")
 
 ##### Generate all the files for countries
 
+if(dir.exists('data')==FALSE){
+  dir.create('data')
+}
+
+
 #can make this a function 
 for (i in 1:length(list_countries)){
   #i <- 1
   country_name <- list_countries[i]
-  varipasable_id <- 25
+  #variable_id <- 25 #set at the beginning
   
-  sql_command <- paste("SELECT * FROM value JOIN location ON location_id=location.id ", 
-                       "WHERE name=",shQuote(country_name)," ",
-                       "AND variable_id = ",variable_id, ";",sep="")
+  if(!is.null(variable_id)){
+    sql_command <- paste("SELECT * FROM value JOIN location ON location_id=location.id ", 
+                         "WHERE name=",shQuote(country_name)," ",
+                         "AND variable_id = ",variable_id, ";",sep="")
+  }else{
+    sql_command <- paste("SELECT * FROM value JOIN location ON location_id=location.id ", 
+                         "WHERE name=",shQuote(country_name),";",sep="")
+    
+  }
+  
   
   data_df <- dbGetQuery(conn, sql_command)  #Selecting station using a SQL query
   ## output dir
   out_filename <- paste0("data_extracted_",country_name,".csv")
-  write.table(data_df,file.path(out_dir,out_filename),sep=",")
+  write.table(data_df,file.path(out_dir,'data',out_filename),sep=",")
   
 }
 ### See errror messages at the end of the script.
@@ -218,7 +240,7 @@ dbDisconnect(conn)
 ### Stage 4: evaluation
 
 
-#################### End of script ##################################
+################################### End of script ##################################
 
 
 ### Error messages:
